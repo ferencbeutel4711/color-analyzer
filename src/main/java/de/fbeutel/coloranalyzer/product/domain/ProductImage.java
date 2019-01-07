@@ -1,7 +1,9 @@
 package de.fbeutel.coloranalyzer.product.domain;
 
 import java.util.List;
+import java.util.Map;
 
+import de.fbeutel.coloranalyzer.color.domain.ColorTile;
 import lombok.Builder;
 import lombok.Data;
 
@@ -15,5 +17,5 @@ public class ProductImage {
   private final String url;
 
   private final ColorDistribution colorDistribution;
-  private final List<ImageScore> imageScores;
+  private final Map<ColorTile, Double> imageScores;
 }

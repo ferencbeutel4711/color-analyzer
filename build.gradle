@@ -30,6 +30,7 @@ dependencies {
   implementation('org.springframework.boot:spring-boot-starter-web')
 
   implementation('org.apache.commons:commons-lang3')
+  implementation('org.apache.commons:commons-math3:3.6.1')
 
   runtimeOnly('org.springframework.boot:spring-boot-devtools')
 
