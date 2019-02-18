@@ -3,6 +3,10 @@ package de.fbeutel.coloranalyzer.product.service;
 import static org.springframework.http.RequestEntity.get;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.ResponseEntity;
@@ -25,21 +29,30 @@ public class ScraperConnector {
     this.restTemplate = restTemplateBuilder.build();
   }
 
-  public ProductUrls fetchProductUrls(final String searchWord) {
-    final String urlToScrape = "https://www.otto.de/suche/" + searchWord;
-    final String scraperBaseUrl = "http://localhost:3000/scrape/productLinks";
-    final URI scrapingUri = UriComponentsBuilder.fromUriString(scraperBaseUrl)
-      .queryParam("url", urlToScrape)
-      .build()
-      .toUri();
+  public List<String> fetchProductUrls(final String searchWord) {
+    final int numberOfPages = 8;
+    final List<String> foundUrls = new ArrayList<>();
 
-    final ResponseEntity<ProductUrls> response = restTemplate.exchange(get(scrapingUri).build(), ProductUrls.class);
+    IntStream.range(1, numberOfPages + 1).forEach(pageNumber -> {
+      final String urlToScrape = "https://www.otto.de/suche/" + searchWord + "?p=" + pageNumber;
+      final String scraperBaseUrl = "http://localhost:3000/scrape/productLinks";
+      final URI scrapingUri = UriComponentsBuilder.fromUriString(scraperBaseUrl)
+        .queryParam("url", urlToScrape)
+        .build()
+        .toUri();
 
-    if (!response.getStatusCode().is2xxSuccessful()) {
-      log.error("error during product url fetching! RC: " + response.getStatusCodeValue() + " body: " + response.getBody());
-    }
+      final ResponseEntity<ProductUrls> response = restTemplate.exchange(get(scrapingUri).build(), ProductUrls.class);
 
-    return response.getBody();
+      if (!response.getStatusCode().is2xxSuccessful()) {
+        log.error("error during product url fetching! RC: " + response.getStatusCodeValue() + " body: " + response.getBody());
+      } else {
+        foundUrls.addAll(response.getBody().getUrls().stream()
+          .filter(url -> !url.contains("lh_platzhalter_ohne_abbildung"))
+          .collect(Collectors.toList()));
+      }
+    });
+
+    return foundUrls;
   }
 
   public ProductData fetchProductData(final String urlToScrape) {

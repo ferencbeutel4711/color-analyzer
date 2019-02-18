@@ -1,8 +1,16 @@
 package de.fbeutel.coloranalyzer.color.service;
 
+import static java.util.Map.Entry.comparingByValue;
+
+import static de.fbeutel.coloranalyzer.color.service.ImageBorderService.ALLOWED_BORDER_COLOR_DISTANCE;
+
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.ToLongFunction;
 import java.util.stream.Collectors;
@@ -14,9 +22,6 @@ import de.fbeutel.coloranalyzer.color.domain.ColorDistribution;
 import de.fbeutel.coloranalyzer.color.domain.ColorDistributionEntry;
 import de.fbeutel.coloranalyzer.color.domain.RgbColor;
 import de.fbeutel.coloranalyzer.color.domain.RgbDimension;
-
-import static de.fbeutel.coloranalyzer.color.service.ImageBorderService.ALLOWED_BORDER_COLOR_DISTANCE;
-import static java.util.Map.Entry.comparingByValue;
 
 @Service
 public class ColorDistributionService {
@@ -49,16 +54,16 @@ public class ColorDistributionService {
     }
 
     final List<ColorDistributionEntry> colorDistributionEntries = groupColors(applyMedianCut(rgbColors)).stream()
-            .map(rgbColorSharePair -> ColorDistributionEntry.builder()
-                    .color(rgbColorSharePair.getLeft())
-                    .share(rgbColorSharePair.getRight())
-                    .build())
-            .sorted(Collections.reverseOrder())
-            .collect(Collectors.toList());
+      .map(rgbColorSharePair -> ColorDistributionEntry.builder()
+        .color(rgbColorSharePair.getLeft())
+        .share(rgbColorSharePair.getRight())
+        .build())
+      .sorted(Collections.reverseOrder())
+      .collect(Collectors.toList());
 
     return ColorDistribution.builder()
-            .colorDistributionEntries(colorDistributionEntries)
-            .build();
+      .colorDistributionEntries(colorDistributionEntries)
+      .build();
   }
 
   private List<Pair<RgbColor, Integer>> groupColors(final List<Pair<RgbColor, Integer>> input) {
@@ -118,10 +123,10 @@ public class ColorDistributionService {
       });
 
       cutBuckets.add(Pair.of(RgbColor.builder()
-              .r(redValues.stream().mapToLong(v -> v).sum() / redValues.size())
-              .g(greenValues.stream().mapToLong(v -> v).sum() / greenValues.size())
-              .b(blueValues.stream().mapToLong(v -> v).sum() / blueValues.size())
-              .build(), bucket.size()));
+        .r(redValues.size() == 0 ? 0 : redValues.stream().mapToLong(v -> v).sum() / redValues.size())
+        .g(greenValues.size() == 0 ? 0 : greenValues.stream().mapToLong(v -> v).sum() / greenValues.size())
+        .b(blueValues.size() == 0 ? 0 : blueValues.stream().mapToLong(v -> v).sum() / blueValues.size())
+        .build(), bucket.size()));
     }
 
     return cutBuckets;

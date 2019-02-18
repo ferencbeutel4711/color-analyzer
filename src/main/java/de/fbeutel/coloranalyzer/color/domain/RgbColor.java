@@ -4,7 +4,6 @@ import java.util.Comparator;
 
 import lombok.Builder;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 
 @Data
 @Builder(toBuilder = true)
@@ -33,5 +32,9 @@ public class RgbColor {
     final String delimiter = ",";
     final String[] className = this.getClass().getName().split("\\.");
     return className[className.length - 1] + ":" + r + delimiter + g + delimiter + b;
+  }
+
+  public String rgbString() {
+    return "rgb(" + r + "," + g + "," + b + ")";
   }
 }

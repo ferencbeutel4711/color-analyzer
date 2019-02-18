@@ -1,15 +1,16 @@
 package de.fbeutel.coloranalyzer.color.service;
 
-import de.fbeutel.coloranalyzer.color.domain.LabColor;
-import de.fbeutel.coloranalyzer.color.domain.RgbColor;
-import de.fbeutel.coloranalyzer.color.domain.XyzColor;
-import lombok.extern.slf4j.Slf4j;
+import static de.fbeutel.coloranalyzer.color.domain.XyzColor.XYZ_D65;
+
 import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.springframework.stereotype.Service;
 
-import static de.fbeutel.coloranalyzer.color.domain.LabColor.CHROMA_CORRECTION;
-import static de.fbeutel.coloranalyzer.color.domain.XyzColor.XYZ_D65;
+import lombok.extern.slf4j.Slf4j;
+
+import de.fbeutel.coloranalyzer.color.domain.LabColor;
+import de.fbeutel.coloranalyzer.color.domain.RgbColor;
+import de.fbeutel.coloranalyzer.color.domain.XyzColor;
 
 @Slf4j
 @Service
@@ -21,15 +22,15 @@ public class ColorConversionService {
 
   public XyzColor toXyz(final RgbColor rgbColor) {
     final double[][] MUTATION_INPUT = {
-            {0.4124564, 0.3575761, 0.1804375},
-            {0.2126729, 0.7151522, 0.0721750},
-            {0.0193339, 0.1191920, 0.9503041},
+      {0.4124564, 0.3575761, 0.1804375},
+      {0.2126729, 0.7151522, 0.0721750},
+      {0.0193339, 0.1191920, 0.9503041},
     };
 
     final double[][] rgbInput = {
-            {invCompand(rgbColor.getR() / 255.0)},
-            {invCompand(rgbColor.getG() / 255.0)},
-            {invCompand(rgbColor.getB() / 255.0)},
+      {invCompand(rgbColor.getR() / 255.0)},
+      {invCompand(rgbColor.getG() / 255.0)},
+      {invCompand(rgbColor.getB() / 255.0)},
     };
 
     final RealMatrix inputMatrix = MatrixUtils.createRealMatrix(rgbInput);
@@ -38,10 +39,10 @@ public class ColorConversionService {
     final RealMatrix mutationResult = mutationMatrix.multiply(inputMatrix);
 
     return XyzColor.builder()
-            .x(Math.round(mutationResult.getEntry(0, 0) * 100 * 100) / 100.0)
-            .y(Math.round(mutationResult.getEntry(1, 0) * 100 * 100) / 100.0)
-            .z(Math.round(mutationResult.getEntry(2, 0) * 100 * 100) / 100.0)
-            .build();
+      .x(Math.round(mutationResult.getEntry(0, 0) * 100 * 100) / 100.0)
+      .y(Math.round(mutationResult.getEntry(1, 0) * 100 * 100) / 100.0)
+      .z(Math.round(mutationResult.getEntry(2, 0) * 100 * 100) / 100.0)
+      .build();
   }
 
   private LabColor toLab(final XyzColor xyzColor) {
@@ -72,10 +73,10 @@ public class ColorConversionService {
     }
 
     return LabColor.builder()
-            .l(Math.round((116.0 * variableY - 16) * 100) / 100.0)
-            .a(Math.round((500.0 * (variableX - variableY)) * 100) / 100.0)
-            .b(Math.round((200.0 * (variableY - variableZ)) * 100) / 100.0)
-            .build();
+      .l(Math.round((116.0 * variableY - 16) * 100) / 100.0)
+      .a(Math.round((500.0 * (variableX - variableY)) * 100) / 100.0)
+      .b(Math.round((200.0 * (variableY - variableZ)) * 100) / 100.0)
+      .build();
   }
 
   private double invCompand(final double companded) {
