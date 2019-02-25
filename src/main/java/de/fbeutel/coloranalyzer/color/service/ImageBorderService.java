@@ -16,7 +16,7 @@ import static de.fbeutel.coloranalyzer.color.domain.ImageEdge.*;
 @Service
 public class ImageBorderService {
 
-  public static final double ALLOWED_BORDER_COLOR_DISTANCE = 7.0;
+  public static final double ALLOWED_BORDER_COLOR_DISTANCE = 3.0;
 
   private final ImageService imageService;
   private final ColorDistanceService colorDistanceService;

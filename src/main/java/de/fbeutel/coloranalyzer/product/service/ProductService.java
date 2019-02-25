@@ -7,6 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import de.fbeutel.coloranalyzer.product.domain.Product;
 import de.fbeutel.coloranalyzer.product.domain.ProductRepository;
 
+import java.util.Optional;
+
 @Slf4j
 @Service
 public class ProductService {
@@ -19,5 +21,9 @@ public class ProductService {
 
   public void create(final Product product) {
     productRepository.save(product);
+  }
+
+  public Optional<Product> findOne(final String id) {
+    return productRepository.findById(id);
   }
 }

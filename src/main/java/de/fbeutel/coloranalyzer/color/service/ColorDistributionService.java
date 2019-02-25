@@ -54,16 +54,16 @@ public class ColorDistributionService {
     }
 
     final List<ColorDistributionEntry> colorDistributionEntries = groupColors(applyMedianCut(rgbColors)).stream()
-      .map(rgbColorSharePair -> ColorDistributionEntry.builder()
-        .color(rgbColorSharePair.getLeft())
-        .share(rgbColorSharePair.getRight())
-        .build())
-      .sorted(Collections.reverseOrder())
-      .collect(Collectors.toList());
+            .map(rgbColorSharePair -> ColorDistributionEntry.builder()
+                    .color(rgbColorSharePair.getLeft())
+                    .share(rgbColorSharePair.getRight())
+                    .build())
+            .sorted(Collections.reverseOrder())
+            .collect(Collectors.toList());
 
     return ColorDistribution.builder()
-      .colorDistributionEntries(colorDistributionEntries)
-      .build();
+            .colorDistributionEntries(colorDistributionEntries)
+            .build();
   }
 
   private List<Pair<RgbColor, Integer>> groupColors(final List<Pair<RgbColor, Integer>> input) {
@@ -72,23 +72,28 @@ public class ColorDistributionService {
 
     int iterator = 0;
     while (input.size() > groupingThreshold && iterator <= iterThreshold) {
-      final Pair<Pair<RgbColor, Integer>, Pair<RgbColor, Integer>> bestGroupingResult = bestGroupingResult(input);
+      final Pair<Pair<Pair<RgbColor, Integer>, Pair<RgbColor, Integer>>, Double> bestGroupingResult = bestGroupingResult(input);
 
-      final Pair<RgbColor, Integer> color1Pair = bestGroupingResult.getLeft();
-      final Pair<RgbColor, Integer> color2Pair = bestGroupingResult.getRight();
+      if (bestGroupingResult.getRight() <= 10) {
+        final Pair<RgbColor, Integer> color1Pair = bestGroupingResult.getLeft().getLeft();
+        final Pair<RgbColor, Integer> color2Pair = bestGroupingResult.getLeft().getRight();
 
-      input.remove(color1Pair);
-      input.remove(color2Pair);
-      final RgbColor meanColor = imageService.getMeanColor(color1Pair.getLeft(), color2Pair.getLeft());
-      input.add(Pair.of(meanColor, color1Pair.getRight() + color2Pair.getRight()));
+        input.remove(color1Pair);
+        input.remove(color2Pair);
+        final RgbColor meanColor = imageService.getMeanColor(color1Pair.getLeft(), color2Pair.getLeft());
+        input.add(Pair.of(meanColor, color1Pair.getRight() + color2Pair.getRight()));
 
-      iterator++;
+        iterator++;
+      } else {
+        break;
+      }
     }
 
     return input;
   }
 
-  private Pair<Pair<RgbColor, Integer>, Pair<RgbColor, Integer>> bestGroupingResult(final List<Pair<RgbColor, Integer>> input) {
+  private Pair<Pair<Pair<RgbColor, Integer>, Pair<RgbColor, Integer>>, Double> bestGroupingResult(final List<Pair<RgbColor,
+          Integer>> input) {
     Map<Pair<Integer, Integer>, Double> index = new ConcurrentHashMap<>();
 
     for (int i = 0; i < input.size() - 1; i++) {
@@ -97,7 +102,9 @@ public class ColorDistributionService {
     }
 
     final Pair<Integer, Integer> bestGroupingPairIndices = index.entrySet().stream().min(comparingByValue()).get().getKey();
-    return Pair.of(input.get(bestGroupingPairIndices.getLeft()), input.get(bestGroupingPairIndices.getRight()));
+    final Double bestDistance = index.entrySet().stream().min(comparingByValue()).get().getValue();
+    return Pair.of(Pair.of(input.get(bestGroupingPairIndices.getLeft()), input.get(bestGroupingPairIndices.getRight())),
+            bestDistance);
   }
 
   private List<Pair<RgbColor, Integer>> applyMedianCut(final List<RgbColor> input) {
@@ -123,10 +130,10 @@ public class ColorDistributionService {
       });
 
       cutBuckets.add(Pair.of(RgbColor.builder()
-        .r(redValues.size() == 0 ? 0 : redValues.stream().mapToLong(v -> v).sum() / redValues.size())
-        .g(greenValues.size() == 0 ? 0 : greenValues.stream().mapToLong(v -> v).sum() / greenValues.size())
-        .b(blueValues.size() == 0 ? 0 : blueValues.stream().mapToLong(v -> v).sum() / blueValues.size())
-        .build(), bucket.size()));
+              .r(redValues.size() == 0 ? 0 : redValues.stream().mapToLong(v -> v).sum() / redValues.size())
+              .g(greenValues.size() == 0 ? 0 : greenValues.stream().mapToLong(v -> v).sum() / greenValues.size())
+              .b(blueValues.size() == 0 ? 0 : blueValues.stream().mapToLong(v -> v).sum() / blueValues.size())
+              .build(), bucket.size()));
     }
 
     return cutBuckets;

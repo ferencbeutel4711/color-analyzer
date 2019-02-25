@@ -29,16 +29,15 @@ public class ImageScoringService {
 
   public Map<String, Double> calculateScores(final ColorDistribution colorDistribution) {
     final double shareAmount = colorDistribution.getColorDistributionEntries().stream()
-      .mapToInt(ColorDistributionEntry::getShare)
-      .sum();
+            .mapToInt(ColorDistributionEntry::getShare)
+            .sum();
 
     return colorTileService.getColorTiles().values().stream()
-      .flatMap(List::stream)
-      .collect(toMap(ColorTile::getName,
-        tile -> colorDistribution.getColorDistributionEntries().stream()
-          .mapToDouble(calculateColorDistanceShare(tile, shareAmount))
-          .average()
-          .orElse(100000)));
+            .flatMap(List::stream)
+            .collect(toMap(ColorTile::getName,
+                    tile -> colorDistribution.getColorDistributionEntries().stream()
+                            .mapToDouble(calculateColorDistanceShare(tile, shareAmount))
+                            .sum()));
   }
 
   private ToDoubleFunction<ColorDistributionEntry> calculateColorDistanceShare(final ColorTile tile, final double shareAmount) {
