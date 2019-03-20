@@ -1,6 +1,7 @@
 package de.fbeutel.coloranalyzer.product.service;
 
 import static java.util.Arrays.asList;
+import static java.util.stream.Collectors.toList;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
@@ -11,6 +12,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -76,10 +78,16 @@ public class ScrapingService {
     productUrls.forEach(productUrl -> productDataFutures.add(productDataExecutorService.submit(() -> scraperConnector
       .fetchProductData(productUrl))));
 
+    final List<Long> performanceProbesDistribution = new ArrayList<>();
+    final List<Long> performanceProbesScoring = new ArrayList<>();
+    final AtomicInteger iterCount = new AtomicInteger();
+
+    final long processingStartTime = System.currentTimeMillis();
     productDataFutures.stream().parallel()
       .forEach(productDataFuture -> {
         try {
           log.info("future #" + productDataFutures.indexOf(productDataFuture) + " of " + productDataFutures.size());
+          iterCount.incrementAndGet();
           final ProductData productData = productDataFuture.get();
 
           if (!productService.findOne(productData.getId()).isPresent()) {
@@ -94,13 +102,22 @@ public class ScrapingService {
                 final BufferedImage image = imageServerConnector.fetchImage(rawImage);
                 final BorderColorDeterminationResult borderColor = imageBorderService.determineBorderColor(image);
                 if (acceptableBorderColorResult(borderColor)) {
+                  final long startTime = System.currentTimeMillis();
+
                   final ColorDistribution distribution = colorDistributionService
                     .colorDistribution(image, borderColor.getBorderColor());
+
+                  final long middleTime = System.currentTimeMillis();
 
                   final ProductImage enrichedImage = rawImage.toBuilder()
                     .imageScores(imageScoringService.calculateScores(distribution))
                     .colorDistribution(distribution)
                     .build();
+
+                  final long endTime = System.currentTimeMillis();
+
+                  performanceProbesDistribution.add(middleTime - startTime);
+                  performanceProbesScoring.add(endTime - middleTime);
 
                   log.info("creating product: " + productData.getId());
 
@@ -125,6 +142,29 @@ public class ScrapingService {
       });
 
     log.info("done importing");
+    log.info("total products processed: " + iterCount.get());
+    log.info("total time elapsed: " + (System.currentTimeMillis() - processingStartTime) / 1000.0 + " seconds");
+
+    final double avgDistributionTime = performanceProbesDistribution.stream().mapToLong(i -> i).average().getAsDouble();
+    final long minDistributionTime = performanceProbesDistribution.stream().mapToLong(i -> i).min().getAsLong();
+    final long maxDistributionTime = performanceProbesDistribution.stream().mapToLong(i -> i).max().getAsLong();
+    final int p99DistributionIndex = (int) (performanceProbesDistribution.size() / 100.0 * 99);
+    final long p99DistributionTime = performanceProbesDistribution.stream().sorted().collect(toList()).get(p99DistributionIndex);
+    log.info("average execution time color distribution: " + avgDistributionTime);
+    log.info("min execution time color distribution: " + minDistributionTime);
+    log.info("max execution time color distribution: " + maxDistributionTime);
+    log.info("p99 execution time color distribution: " + p99DistributionTime);
+
+    final double avgScoringTime = performanceProbesScoring.stream().mapToLong(i -> i).average().getAsDouble();
+    final long minScoringTime = performanceProbesScoring.stream().mapToLong(i -> i).min().getAsLong();
+    final long maxScoringTime = performanceProbesScoring.stream().mapToLong(i -> i).max().getAsLong();
+    final int p99ScoringIndex = (int) (performanceProbesScoring.size() / 100.0 * 99);
+    final long p99ScoringTime = performanceProbesScoring.stream().sorted().collect(toList()).get(p99ScoringIndex);
+
+    log.info("average execution time scoring: " + avgScoringTime);
+    log.info("min execution time scoring: " + minScoringTime);
+    log.info("max execution time scoring: " + maxScoringTime);
+    log.info("p99 execution time scoring: " + p99ScoringTime);
   }
 
   private boolean acceptableBorderColorResult(final BorderColorDeterminationResult result) {
