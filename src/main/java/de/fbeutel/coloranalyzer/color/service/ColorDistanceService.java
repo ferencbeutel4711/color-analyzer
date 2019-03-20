@@ -1,11 +1,13 @@
 package de.fbeutel.coloranalyzer.color.service;
 
-import de.fbeutel.coloranalyzer.color.domain.LabColor;
-import de.fbeutel.coloranalyzer.color.domain.RgbColor;
-import lombok.extern.slf4j.Slf4j;
+import static de.fbeutel.coloranalyzer.color.domain.LabColor.CHROMA_CORRECTION;
+
 import org.springframework.stereotype.Service;
 
-import static de.fbeutel.coloranalyzer.color.domain.LabColor.CHROMA_CORRECTION;
+import lombok.extern.slf4j.Slf4j;
+
+import de.fbeutel.coloranalyzer.color.domain.LabColor;
+import de.fbeutel.coloranalyzer.color.domain.RgbColor;
 
 @Slf4j
 @Service
@@ -23,8 +25,8 @@ public class ColorDistanceService {
 
   public double calculateDistance(final LabColor color1, final LabColor color2) {
     // several corrections
-    final double seventhExponentChroma = Math.pow((Math.sqrt(Math.pow(color1.getA(), 2) + Math.pow(color1.getB(), 2)) + Math
-            .sqrt(Math.pow(color2.getA(), 2) + Math.pow(color2.getB(), 2))) / 2, 7);
+    final double seventhExponentChroma = Math.pow((Math.sqrt(Math.pow(color1.getA(), 2) + Math.pow(color1.getB(), 2)) +
+      Math.sqrt(Math.pow(color2.getA(), 2) + Math.pow(color2.getB(), 2))) / 2, 7);
     final double correctedChroma = Math.sqrt(seventhExponentChroma / (seventhExponentChroma + CHROMA_CORRECTION));
     final double shiftedCorrectedChroma = (1 - correctedChroma) / 2;
     final double myCorrectedA = (1 + shiftedCorrectedChroma) * color1.getA();
@@ -36,27 +38,27 @@ public class ColorDistanceService {
 
     //calculating means + standardised values
     final double meanLightness = (color1.getL() + color2.getL()) / 2;
-    final double standardisedLightness = 1 + (0.015 * Math.pow(meanLightness - 50, 2)) / (Math.sqrt(20 + Math.pow(meanLightness
-            - 50, 2)));
+    final double standardisedLightness =
+      1 + (0.015 * Math.pow(meanLightness - 50, 2)) / (Math.sqrt(20 + Math.pow(meanLightness - 50, 2)));
 
     final double meanChroma = (myAltChroma + othersAltChroma) / 2;
     final double standardisedChroma = 1 + 0.045 * meanChroma;
 
     final double meanHue = getMeanHue(myHueAngle, othersHueAngle, myAltChroma, othersAltChroma);
-    final double standardisedHue = 1 + 0.015 * meanChroma * (1 - 0.17 * Math.cos(Math.toRadians(meanHue - 30)) + 0.24 * Math
-            .cos(Math.toRadians(2 * meanHue)) + 0.32 * Math.cos(Math.toRadians(3 * meanHue + 6)) - 0.2 * Math.cos(Math
-            .toRadians(4 * meanHue - 63)));
+    final double standardisedHue = 1 + 0.015 * meanChroma *
+      (1 - 0.17 * Math.cos(Math.toRadians(meanHue - 30)) + 0.24 * Math.cos(Math.toRadians(2 * meanHue)) +
+        0.32 * Math.cos(Math.toRadians(3 * meanHue + 6)) - 0.2 * Math.cos(Math.toRadians(4 * meanHue - 63)));
 
     //calculating result
     final double deltaChroma = othersAltChroma - myAltChroma;
-    final double deltaHue = 2 * Math.sqrt(myAltChroma * othersAltChroma) * Math.sin(Math.toRadians(getDeltaHue(myAltChroma,
-            othersAltChroma, myHueAngle, othersHueAngle) / 2));
+    final double deltaHue = 2 * Math.sqrt(myAltChroma * othersAltChroma) *
+      Math.sin(Math.toRadians(getDeltaHue(myAltChroma, othersAltChroma, myHueAngle, othersHueAngle) / 2));
 
-    return Math.sqrt(Math.pow((color2.getL() - color1.getL()) / standardisedLightness, 2) + Math.pow(deltaChroma /
-            standardisedChroma, 2) + Math.pow(deltaHue / standardisedHue, 2) + (-2 * correctedChroma * Math.sin(Math.toRadians
-            (60 * Math.exp(0 - Math.pow((meanHue - 275) / 25, 2))))) * (deltaChroma / standardisedChroma) * (deltaHue /
-            standardisedHue)
-    );
+    return Math.sqrt(
+      Math.pow((color2.getL() - color1.getL()) / standardisedLightness, 2) + Math.pow(deltaChroma / standardisedChroma, 2) +
+        Math.pow(deltaHue / standardisedHue, 2) +
+        (-2 * correctedChroma * Math.sin(Math.toRadians(60 * Math.exp(0 - Math.pow((meanHue - 275) / 25, 2))))) *
+          (deltaChroma / standardisedChroma) * (deltaHue / standardisedHue));
   }
 
   private double getMeanHue(final double hueAngleOne, final double hueAngleTwo, final double chromaOne, final double chromaTwo) {

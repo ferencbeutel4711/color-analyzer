@@ -60,7 +60,7 @@ public class ScrapingService {
     final ExecutorService productUrlsExecutorService = Executors.newFixedThreadPool(5);
     final List<Future<List<String>>> productUrlsFutures = new ArrayList<>();
     SEARCH_WORDS.forEach(searchWord -> productUrlsFutures.add(
-            productUrlsExecutorService.submit(() -> scraperConnector.fetchProductUrls(searchWord))));
+      productUrlsExecutorService.submit(() -> scraperConnector.fetchProductUrls(searchWord))));
 
     final ExecutorService productDataExecutorService = Executors.newFixedThreadPool(5);
     final List<Future<ProductData>> productDataFutures = new ArrayList<>();
@@ -74,54 +74,55 @@ public class ScrapingService {
     });
 
     productUrls.forEach(productUrl -> productDataFutures.add(productDataExecutorService.submit(() -> scraperConnector
-            .fetchProductData(productUrl))));
+      .fetchProductData(productUrl))));
 
-    productDataFutures.forEach(productDataFuture -> {
-      try {
-        log.info("future #" + productDataFutures.indexOf(productDataFuture) + " of " + productDataFutures.size());
-        final ProductData productData = productDataFuture.get();
+    productDataFutures.stream().parallel()
+      .forEach(productDataFuture -> {
+        try {
+          log.info("future #" + productDataFutures.indexOf(productDataFuture) + " of " + productDataFutures.size());
+          final ProductData productData = productDataFuture.get();
 
-        if (!productService.findOne(productData.getId()).isPresent()) {
-          boolean foundAcceptableImage = false;
-          for (final String imageId : productData.getImages()) {
-            final ProductImage rawImage = ProductImage.builder()
-                    .id(imageId)
-                    .url("https://i.otto.de/i/otto/" + imageId)
+          if (!productService.findOne(productData.getId()).isPresent()) {
+            boolean foundAcceptableImage = false;
+            for (final String imageId : productData.getImages()) {
+              final ProductImage rawImage = ProductImage.builder()
+                .id(imageId)
+                .url("https://i.otto.de/i/otto/" + imageId)
+                .build();
+
+              if (!rawImage.getUrl().contains("lh_platzhalter_ohne_abbildung")) {
+                final BufferedImage image = imageServerConnector.fetchImage(rawImage);
+                final BorderColorDeterminationResult borderColor = imageBorderService.determineBorderColor(image);
+                if (acceptableBorderColorResult(borderColor)) {
+                  final ColorDistribution distribution = colorDistributionService
+                    .colorDistribution(image, borderColor.getBorderColor());
+
+                  final ProductImage enrichedImage = rawImage.toBuilder()
+                    .imageScores(imageScoringService.calculateScores(distribution))
+                    .colorDistribution(distribution)
                     .build();
 
-            if (!rawImage.getUrl().contains("lh_platzhalter_ohne_abbildung")) {
-              final BufferedImage image = imageServerConnector.fetchImage(rawImage);
-              final BorderColorDeterminationResult borderColor = imageBorderService.determineBorderColor(image);
-              if (acceptableBorderColorResult(borderColor)) {
-                final ColorDistribution distribution = colorDistributionService
-                        .colorDistribution(image, borderColor.getBorderColor());
+                  log.info("creating product: " + productData.getId());
 
-                final ProductImage enrichedImage = rawImage.toBuilder()
-                        .imageScores(imageScoringService.calculateScores(distribution))
-                        .colorDistribution(distribution)
-                        .build();
-
-                log.info("creating product: " + productData.getId());
-
-                productService.create(Product.builder()
-                        .id(productData.getId())
-                        .productImage(enrichedImage)
-                        .build());
-                foundAcceptableImage = true;
-                break;
+                  productService.create(Product.builder()
+                    .id(productData.getId())
+                    .productImage(enrichedImage)
+                    .build());
+                  foundAcceptableImage = true;
+                  break;
+                }
               }
             }
-          }
 
-          if (!foundAcceptableImage) {
-            log.warn("could not determine acceptable image from images: " + productData.getImages() + " of product: " +
-                    productData.getId());
+            if (!foundAcceptableImage) {
+              log.warn("could not determine acceptable image from images: " + productData.getImages() + " of product: " +
+                productData.getId());
+            }
           }
+        } catch (InterruptedException | ExecutionException exception) {
+          log.error("error during resolving of a product data future", exception);
         }
-      } catch (InterruptedException | ExecutionException exception) {
-        log.error("error during resolving of a product data future", exception);
-      }
-    });
+      });
 
     log.info("done importing");
   }
@@ -129,6 +130,6 @@ public class ScrapingService {
   private boolean acceptableBorderColorResult(final BorderColorDeterminationResult result) {
     final double threshold = 0.9;
     return result.getUpperEdgeUniformity() >= threshold && result.getLeftEdgeUniformity() >= threshold && result
-            .getRightEdgeUniformity() >= threshold && result.getLowerEdgeUniformity() >= threshold;
+      .getRightEdgeUniformity() >= threshold && result.getLowerEdgeUniformity() >= threshold;
   }
 }
